@@ -44,6 +44,11 @@ final class StashController {
     private var currentOrigin = CGPoint.zero
     private var previousFrontmostPID: pid_t?
     private var timer: Timer?
+    private var fastTimer = false
+    private var pointerWasAtEdge = false
+    private var trusted = false
+    private var nextTrustCheck: CFTimeInterval = 0
+    private var mouseMonitor: Any?
     private var nextAcquire: CFTimeInterval = 0
     private var nextValidate: CFTimeInterval = 0
     private var observers: [NSObjectProtocol] = []
@@ -55,11 +60,12 @@ final class StashController {
     // MARK: - Lifecycle
 
     func start() {
-        let t = Timer(timeInterval: 1.0 / 60.0, repeats: true) { _ in
-            MainActor.assumeIsolated { self.tick() }
+        scheduleTimer(fast: false)
+        // Pointer movement wakes us immediately, so the idle timer can stay slow.
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]) { _ in
+            MainActor.assumeIsolated { if !self.fastTimer { self.tick() } }
         }
-        RunLoop.main.add(t, forMode: .common)
-        timer = t
 
         let ws = NSWorkspace.shared.notificationCenter
         observers.append(ws.addObserver(forName: NSWorkspace.didActivateApplicationNotification,
@@ -108,16 +114,36 @@ final class StashController {
 
     // MARK: - Tick
 
+    /// 60 Hz while something is happening (pointer on the edge, window out, animating), 10 Hz otherwise.
+    private func scheduleTimer(fast: Bool) {
+        timer?.invalidate()
+        let t = Timer(timeInterval: fast ? 1.0 / 60.0 : 1.0 / 10.0, repeats: true) { _ in
+            MainActor.assumeIsolated { self.tick() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
+        fastTimer = fast
+    }
+
     private func tick() {
         let now = CACurrentMediaTime()
+        defer {
+            let wantFast = animation != nil || policy.state != .hidden || pointerWasAtEdge
+            if wantFast != fastTimer { scheduleTimer(fast: wantFast) }
+        }
         stepAnimation(now)
+        pointerWasAtEdge = false
+        if now >= nextTrustCheck {
+            trusted = AXIsProcessTrusted()
+            nextTrustCheck = now + 1
+        }
 
         guard settings.enabled else {
             if managed != nil { release() }
             status = .disabled
             return
         }
-        guard AXIsProcessTrusted() else {
+        guard trusted else {
             managed = nil
             status = .needsPermission
             return
@@ -139,9 +165,11 @@ final class StashController {
         let frontPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
         policy.revealDelay = settings.revealDelay
         policy.hideDelay = settings.hideDelay
+        let atEdge = StashGeometry.isAtEdge(mouse, screen: m.screen, edge: m.edge)
+        pointerWasAtEdge = atEdge
         let action = policy.update(.init(
             now: now,
-            pointerAtEdge: StashGeometry.isAtEdge(mouse, screen: m.screen, edge: m.edge),
+            pointerAtEdge: atEdge,
             pointerInWindow: shownFrame.contains(mouse),
             mouseButtonDown: NSEvent.pressedMouseButtons != 0,
             targetIsFrontmost: frontPID == m.window.pid))
