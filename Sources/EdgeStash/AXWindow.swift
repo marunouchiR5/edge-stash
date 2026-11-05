@@ -25,6 +25,13 @@ struct AXWindow {
         return AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, value) == .success
     }
 
+    @discardableResult
+    func setSize(_ size: CGSize) -> Bool {
+        var s = size
+        guard let value = AXValueCreate(.cgSize, &s) else { return false }
+        return AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, value) == .success
+    }
+
     /// Brings this window to the front of its app and makes it the main window.
     func raise() {
         AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)

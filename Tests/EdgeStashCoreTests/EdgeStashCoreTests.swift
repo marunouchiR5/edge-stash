@@ -133,3 +133,14 @@ private let external = StashGeometry.axRect(fromCocoa: CGRect(x: -240, y: 900, w
     }
 }
 
+@Suite struct WidthPresetTests {
+    @Test func widths() {
+        #expect(WidthPreset.current.width(forAreaWidth: 1920) == nil)
+        #expect(WidthPreset.minimum.width(forAreaWidth: 1920) == 1)
+        #expect(WidthPreset.quarter.width(forAreaWidth: 1920) == 480)
+        #expect(WidthPreset.third.width(forAreaWidth: 1920) == 640)
+        #expect(WidthPreset.half.width(forAreaWidth: 1366) == 683)
+        #expect(WidthPreset.threeQuarters.width(forAreaWidth: 1366) == 1025)   // 1024.5 rounds up
+        #expect(WidthPreset.full.width(forAreaWidth: 1920) == 1920)
+    }
+}

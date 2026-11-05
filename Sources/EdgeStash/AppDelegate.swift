@@ -144,6 +144,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         edgeItem.submenu = edgeMenu
         menu.addItem(edgeItem)
 
+        // Width
+        let widthItem = NSMenuItem(title: "Width", action: nil, keyEquivalent: "")
+        let widthMenu = NSMenu()
+        for preset in WidthPreset.allCases {
+            var title = preset.title
+            if let area = controller.areaWidth, let w = preset.width(forAreaWidth: area), preset != .minimum {
+                title += " · \(Int(w)) pt"
+            }
+            let i = item(title, #selector(chooseWidth(_:)))
+            i.representedObject = preset.rawValue
+            i.state = settings.widthPreset == preset ? .on : .off
+            widthMenu.addItem(i)
+            if preset == .current { widthMenu.addItem(.separator()) }
+        }
+        widthItem.submenu = widthMenu
+        menu.addItem(widthItem)
+
         menu.addItem(.separator())
         let login = item("Launch at Login", #selector(toggleLaunchAtLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -188,6 +205,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         controller.release()
         settings.edge = edge
         updateIcon()
+    }
+
+    @objc private func chooseWidth(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let preset = WidthPreset(rawValue: raw) else { return }
+        settings.widthPreset = preset
+        controller.applyWidthPreset()
     }
 
     @objc private func toggleLaunchAtLogin() {

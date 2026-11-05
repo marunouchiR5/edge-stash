@@ -11,6 +11,7 @@ final class Settings {
             "enabled": true,
             "targetBundleID": "notion.id",
             "edge": StashEdge.right.rawValue,
+            "widthPreset": WidthPreset.current.rawValue,
             "peek": 1.0,
             "revealDelay": 0.08,
             "hideDelay": 0.35,
@@ -31,6 +32,11 @@ final class Settings {
     var edge: StashEdge {
         get { StashEdge(rawValue: d.string(forKey: "edge") ?? "") ?? .right }
         set { d.set(newValue.rawValue, forKey: "edge") }
+    }
+
+    var widthPreset: WidthPreset {
+        get { WidthPreset(rawValue: d.string(forKey: "widthPreset") ?? "") ?? .current }
+        set { d.set(newValue.rawValue, forKey: "widthPreset") }
     }
 
     /// Points of the window left on screen while stashed. macOS refuses to place a window

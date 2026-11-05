@@ -9,7 +9,9 @@ slides back. Similar to Rectangle Pro's "Stash", free and open source.
 - Slides back when the pointer leaves the window (hover) or the app loses focus (activation),
   and hands keyboard focus back to the app you were using.
 - Drag the window away from the edge to unpin it. Quitting EdgeStash puts the window back.
-- Menu bar: pick the app, the window, the edge (left/right), Launch at Login.
+- Width presets: keep the current width, or snap to Minimum (the app's own minimum), 25%, 33%,
+  50%, 75% or 100% of the screen's usable width. Applied immediately and whenever a window is stashed.
+- Menu bar: pick the app, the window, the edge (left/right), the width, Launch at Login.
 
 ## Install
 
@@ -32,6 +34,7 @@ defaults write io.github.marunouchir5.EdgeStash revealDelay -float 0.08      # s
 defaults write io.github.marunouchir5.EdgeStash hideDelay -float 0.35        # seconds outside before sliding back
 defaults write io.github.marunouchir5.EdgeStash animationDuration -float 0.16
 defaults write io.github.marunouchir5.EdgeStash peek -float 1                # points left visible (macOS minimum is 1)
+defaults write io.github.marunouchir5.EdgeStash widthPreset half            # current|minimum|quarter|third|half|threeQuarters|full
 ```
 
 ## Known limitations

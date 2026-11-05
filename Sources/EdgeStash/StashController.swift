@@ -99,6 +99,31 @@ final class StashController {
         adopt(window)
     }
 
+    /// Usable width of the screen the window is stashed on (for menu labels).
+    var areaWidth: CGFloat? { managed?.area.width }
+
+    /// Resizes the managed window to the selected width preset, keeping it anchored to the edge.
+    func applyWidthPreset() {
+        animation = nil
+        resizeToPreset(anchorShown: policy.state != .hidden)
+    }
+
+    /// macOS won't let an on-screen window grow past the screen edge, so the window is first moved
+    /// to where it will sit with the new width, then resized, then re-anchored with the size the
+    /// app actually accepted (apps clamp to their own minimum width).
+    private func resizeToPreset(anchorShown: Bool) {
+        guard let m = managed, let width = settings.widthPreset.width(forAreaWidth: m.area.width) else { return }
+        let anchor = { (m: Managed) in anchorShown ? self.shownOrigin(m) : self.hiddenOrigin(m) }
+        managed?.size.width = width
+        m.window.setOrigin(anchor(managed!))
+        m.window.setSize(managed!.size)
+        if let actual = m.window.frame?.size { managed?.size = actual }
+        let origin = anchor(managed!)
+        m.window.setOrigin(origin)
+        currentOrigin = origin
+        if !anchorShown { managed?.lastHiddenOrigin = m.window.frame?.origin }
+    }
+
     func targetWindows() -> [AXWindow] {
         guard let app = targetApp() else { return [] }
         return AXWindow.windows(pid: app.processIdentifier)
@@ -227,6 +252,7 @@ final class StashController {
                           screenName: screens[idx].localizedName, edge: settings.edge)
         currentOrigin = frame.origin
         policy.reset()
+        resizeToPreset(anchorShown: true)   // resize in view, then slide away
         animate(to: hiddenOrigin(managed!))
         status = .stashed(screen: screens[idx].localizedName, shown: false)
     }
