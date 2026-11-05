@@ -4,10 +4,10 @@ cask "edgestash" do
   version "0.1.0"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
 
-  url "https://github.com/marunouchiR5/EdgeStash/releases/download/v#{version}/EdgeStash-#{version}.zip"
+  url "https://github.com/marunouchiR5/edge-stash/releases/download/v#{version}/EdgeStash-#{version}.zip"
   name "EdgeStash"
   desc "Stash an app window at a screen edge and slide it out on hover"
-  homepage "https://github.com/marunouchiR5/EdgeStash"
+  homepage "https://github.com/marunouchiR5/edge-stash"
 
   depends_on macos: ">= :sonoma"
 

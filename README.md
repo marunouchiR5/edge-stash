@@ -19,7 +19,7 @@ slides back. Similar to Rectangle Pro's "Stash", free and open source.
 brew install --cask marunouchiR5/tap/edgestash
 ```
 
-Or download the zip from [Releases](https://github.com/marunouchiR5/EdgeStash/releases).
+Or download the zip from [Releases](https://github.com/marunouchiR5/edge-stash/releases).
 
 On first launch grant **System Settings › Privacy & Security › Accessibility › EdgeStash**.
 
