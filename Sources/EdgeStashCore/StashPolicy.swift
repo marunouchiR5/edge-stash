@@ -25,6 +25,7 @@ public struct StashPolicy: Sendable {
         public var pointerAtEdge: Bool
         public var pointerInWindow: Bool
         public var mouseButtonDown: Bool
+        /// True only when this specific window, rather than another window of its app, has focus.
         public var targetIsFrontmost: Bool
 
         public init(now: TimeInterval, pointerAtEdge: Bool, pointerInWindow: Bool,
@@ -41,6 +42,8 @@ public struct StashPolicy: Sendable {
     public var revealDelay: TimeInterval
     /// How long the pointer has to stay outside the window before hiding.
     public var hideDelay: TimeInterval
+    /// Keeps this side open alongside the current app and the other side.
+    public var keepVisible = false
 
     public private(set) var state: State = .hidden
     private var atEdgeSince: TimeInterval?
@@ -55,6 +58,7 @@ public struct StashPolicy: Sendable {
     public mutating func update(_ s: Sample) -> Action? {
         switch state {
         case .hidden:
+            if keepVisible { return transition(to: .shown(.hover)) }
             guard s.pointerAtEdge else { atEdgeSince = nil; return nil }
             let since = atEdgeSince ?? s.now
             atEdgeSince = since
@@ -62,7 +66,7 @@ public struct StashPolicy: Sendable {
             return transition(to: .shown(.hover))
 
         case .shown(.hover):
-            if s.pointerInWindow || s.pointerAtEdge || s.mouseButtonDown {
+            if keepVisible || s.targetIsFrontmost || s.pointerInWindow || s.pointerAtEdge || s.mouseButtonDown {
                 outsideSince = nil
                 return nil
             }
@@ -72,6 +76,7 @@ public struct StashPolicy: Sendable {
             return transition(to: .hidden)
 
         case .shown(.activation):
+            if keepVisible { return nil }
             // Pointer entering the window hands control over to hover semantics.
             if s.pointerInWindow {
                 state = .shown(.hover)

@@ -52,6 +52,19 @@ private let external = StashGeometry.axRect(fromCocoa: CGRect(x: -240, y: 900, w
         #expect(StashGeometry.isAtEdge(CGPoint(x: -240, y: -10), screen: external, edge: .left))
     }
 
+    @Test func edgeDiscoveryUsesThePointersDisplay() {
+        let screens = [builtIn, external]
+        #expect(StashGeometry.edgeScreenIndex(for: CGPoint(x: external.minX + 1, y: external.midY),
+                                              screens: screens, edge: .left) == 1)
+        #expect(StashGeometry.edgeScreenIndex(for: CGPoint(x: external.maxX - 1, y: external.midY),
+                                              screens: screens, edge: .right) == 1)
+        #expect(StashGeometry.edgeScreenIndex(for: CGPoint(x: builtIn.minX + 1, y: builtIn.midY),
+                                              screens: screens, edge: .left) == 0)
+        #expect(StashGeometry.edgeScreenIndex(for: CGPoint(x: builtIn.maxX - 1, y: builtIn.midY),
+                                              screens: screens, edge: .right) == 0)
+        #expect(StashGeometry.edgeScreenIndex(for: CGPoint(x: 500, y: 500), screens: screens, edge: .left) == nil)
+    }
+
     @Test func bestScreen() {
         let screens = [builtIn, external]
         #expect(StashGeometry.bestScreenIndex(for: CGRect(x: 1080, y: -1000, width: 600, height: 1000), screens: screens) == 1)
@@ -116,13 +129,15 @@ private let external = StashGeometry.axRect(fromCocoa: CGRect(x: -240, y: 900, w
         #expect(p.update(sample(11, front: false)) == .hide)
     }
 
-    @Test func activationRevealSwitchesToHoverOncePointerEnters() {
+    @Test func clickedSideStaysVisibleWhileItHasKeyboardFocus() {
         var p = StashPolicy(revealDelay: 0, hideDelay: 0.3)
         _ = p.targetActivated()
         _ = p.update(sample(0, inside: true, front: true))
         #expect(p.state == .shown(.hover))
         _ = p.update(sample(1, front: true))
-        #expect(p.update(sample(1.4, front: true)) == .hide)
+        #expect(p.update(sample(1.4, front: true)) == nil)
+        #expect(p.update(sample(2, front: false)) == nil)
+        #expect(p.update(sample(2.4, front: false)) == .hide)
     }
 
     @Test func activationWhileShownIsIgnored() {
@@ -130,6 +145,42 @@ private let external = StashGeometry.axRect(fromCocoa: CGRect(x: -240, y: 900, w
         _ = p.update(sample(0, edge: true))
         #expect(p.targetActivated() == nil)
         #expect(p.state == .shown(.hover))
+    }
+
+
+    @Test func bothSidesStayVisibleWithoutRequiringFocus() {
+        var left = StashPolicy(revealDelay: 0, hideDelay: 0.3)
+        var right = StashPolicy(revealDelay: 0, hideDelay: 0.3)
+        left.keepVisible = true
+        right.keepVisible = true
+        #expect(left.update(sample(0)) == .reveal(.hover))
+        #expect(right.update(sample(0)) == .reveal(.hover))
+        #expect(left.update(sample(10)) == nil)
+        #expect(right.update(sample(10)) == nil)
+        left.keepVisible = false
+        #expect(left.update(sample(11)) == nil)
+        #expect(left.update(sample(11.4)) == .hide)
+        #expect(right.state == .shown(.hover))
+    }
+
+    @Test func hoverPreviewCanHideWhileAnotherWindowRemainsFocused() {
+        var p = StashPolicy(revealDelay: 0, hideDelay: 0.3)
+        #expect(p.update(sample(0, edge: true, front: false)) == .reveal(.hover))
+        #expect(p.update(sample(1, front: false)) == nil)
+        #expect(p.update(sample(1.4, front: false)) == .hide)
+    }
+
+    @Test func oppositeEdgesKeepIndependentRevealAndHideState() {
+        var left = StashPolicy(revealDelay: 0, hideDelay: 0.3)
+        var right = StashPolicy(revealDelay: 0, hideDelay: 0.3)
+        #expect(left.update(sample(0, edge: true)) == .reveal(.hover))
+        #expect(right.state == .hidden)
+        #expect(right.update(sample(1, edge: true)) == .reveal(.hover))
+        #expect(left.update(sample(1)) == nil)
+        #expect(left.update(sample(1.4)) == .hide)
+        #expect(right.state == .shown(.hover))
+        left.reset()
+        #expect(right.state == .shown(.hover))
     }
 }
 
