@@ -44,6 +44,13 @@ public enum StashGeometry {
         }
     }
 
+    /// Locate the display whose edge the pointer actually touches, independently of where
+    /// the stashed window was acquired. Prefer the containing display at shared boundaries.
+    public static func edgeScreenIndex(for point: CGPoint, screens: [CGRect], edge: StashEdge) -> Int? {
+        let candidates = screens.indices.filter { isAtEdge(point, screen: screens[$0], edge: edge) }
+        return candidates.first { screens[$0].contains(point) } ?? candidates.first
+    }
+
     /// Index of the screen sharing the largest area with `rect`, or nil if none intersects.
     public static func bestScreenIndex(for rect: CGRect, screens: [CGRect]) -> Int? {
         var best: (index: Int, area: CGFloat)?

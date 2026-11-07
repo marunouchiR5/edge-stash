@@ -1,6 +1,9 @@
 import AppKit
 import ApplicationServices
 
+@_silgen_name("_AXUIElementGetWindow")
+private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: UnsafeMutablePointer<CGWindowID>) -> AXError
+
 /// Thin wrapper over an Accessibility window element of another app.
 struct AXWindow {
     let element: AXUIElement
@@ -15,8 +18,6 @@ struct AXWindow {
         AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
         return CGRect(origin: origin, size: size)
     }
-
-    var title: String { Self.copy(element, kAXTitleAttribute) as? String ?? "" }
 
     @discardableResult
     func setOrigin(_ point: CGPoint) -> Bool {
@@ -38,7 +39,38 @@ struct AXWindow {
         AXUIElementPerformAction(element, kAXRaiseAction as CFString)
     }
 
+    /// Raising a sibling of the foreground window makes it key on macOS, even without
+    /// activating the app. Move those siblings into view without raising them.
+    func raiseWithoutActivating() {
+        guard NSWorkspace.shared.frontmostApplication?.processIdentifier != pid else { return }
+        AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
+        AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        AXUIElementPerformAction(element, kAXRaiseAction as CFString)
+    }
+
     func isSame(as other: AXWindow) -> Bool { CFEqual(element, other.element) }
+
+    /// WindowServer ID, needed to match Stage Manager's strip entries. There is no public
+    /// AX attribute for it; this private call is the one window managers commonly rely on.
+    var windowID: CGWindowID? {
+        var id: CGWindowID = 0
+        return _AXUIElementGetWindow(element, &id) == .success && id != 0 ? id : nil
+    }
+
+    /// Stage Manager may report a full-size AX frame while rendering only a thumbnail.
+    /// Inspect scalar WindowServer metadata, without reading titles or capturing pixels.
+    func isVisibleAtCurrentFrame() -> Bool {
+        guard let expected = frame,
+              let list = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[String: Any]] else { return false }
+        return list.contains { entry in
+            guard entry[kCGWindowOwnerPID as String] as? Int32 == pid,
+                  entry[kCGWindowLayer as String] as? Int == 0,
+                  let bounds = entry[kCGWindowBounds as String] as? NSDictionary,
+                  let rect = CGRect(dictionaryRepresentation: bounds) else { return false }
+            return abs(rect.minX - expected.minX) < 3 && abs(rect.minY - expected.minY) < 3
+                && abs(rect.width - expected.width) < 3 && abs(rect.height - expected.height) < 3
+        }
+    }
 
     // MARK: - Lookup
 
@@ -54,8 +86,8 @@ struct AXWindow {
     }
 
     /// The window the user most likely means: focused, then main, then the first one.
-    static func preferred(pid: pid_t) -> AXWindow? {
-        let all = windows(pid: pid)
+    static func preferred(pid: pid_t, eligible: (AXWindow) -> Bool = { _ in true }) -> AXWindow? {
+        let all = windows(pid: pid).filter(eligible)
         let app = AXUIElementCreateApplication(pid)
         for attr in [kAXFocusedWindowAttribute, kAXMainWindowAttribute] {
             if let el = copy(app, attr), CFGetTypeID(el) == AXUIElementGetTypeID() {

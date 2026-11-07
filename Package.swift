@@ -5,7 +5,7 @@ let package = Package(
     name: "EdgeStash",
     platforms: [.macOS(.v14)],
     targets: [
-        // Pure logic (geometry + hide/reveal policy), unit-tested.
+        // Geometry, hide/reveal policy, safe acquisition and preferences, unit-tested.
         .target(name: "EdgeStashCore"),
         // The menu bar app: Accessibility window control, mouse tracking, UI.
         .executableTarget(
@@ -14,5 +14,6 @@ let package = Package(
             linkerSettings: [.linkedFramework("ApplicationServices")]
         ),
         .testTarget(name: "EdgeStashCoreTests", dependencies: ["EdgeStashCore"]),
+        .testTarget(name: "EdgeStashTests", dependencies: ["EdgeStash"]),
     ]
 )
